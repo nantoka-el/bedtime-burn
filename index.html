@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bedtime Burn</title>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- Howler.js (sound) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+<!-- Canvas‑confetti (mini fireworks) -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.1/dist/confetti.browser.min.js"></script>
+
+<style>
+:root{
+  /* 5 色パレット (JS で起動時に --accent / --accent-2 へセット) */
+  --c0a:#17c0ff; --c0b:#55e0ff;
+  --c1a:#ff7ee6; --c1b:#ffb4f6;
+  --c2a:#ffb84d; --c2b:#ffd36b;
+  --c3a:#00ffa6; --c3b:#5dffcf;
+  --c4a:#ffa657; --c4b:#ffce8b;
+
+  --bg-1:#121212;--bg-2:#1c1c1c;
+  --accent:var(--c0a);--accent-2:var(--c0b);
+  --text:#e4e4e4;--sub:#b0b0b0;
+  --shadow:rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Noto Sans JP',sans-serif;
+  background:linear-gradient(var(--bg-1),var(--bg-2));
+  color:var(--text);text-align:center;min-height:100vh;
+  display:flex;flex-direction:column
+}
+#header{
+  position:fixed;top:0;left:0;right:0;z-index:120;
+  padding:10px 0;font-size:1.05em;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  color:#fff;font-family:'Zen Maru Gothic',sans-serif;
+  box-shadow:0 2px 4px var(--shadow)
+}
+#settings{
+  position:fixed;top:12px;right:12px;font-size:1.4em;cursor:pointer;z-index:130
+}
+#content{padding:66px 16px 16px;max-width:480px;margin:0 auto;width:100%}
+.screen{
+  background:#242424;border-radius:18px;padding:28px 20px;margin-bottom:40px;
+  box-shadow:0 4px 8px var(--shadow);display:none;flex-direction:column;align-items:center;
+  animation:fade .4s forwards
+}
+.screen.active{display:flex}
+@keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+h1{font-family:'Zen Maru Gothic',sans-serif;font-size:1.9em;margin-bottom:16px;color:var(--accent)}
+@keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+.bounce{animation:pop .5s cubic-bezier(.25,1.5,.5,1)}
+p{line-height:1.5;color:var(--sub)}
+
+button{
+  font-family:'Zen Maru Gothic',sans-serif;font-size:1.15em;
+  padding:12px 28px;margin:10px 6px;border:none;border-radius:34px;
+  background:linear-gradient(45deg,var(--accent),var(--accent-2));
+  color:#fff;cursor:pointer;position:relative;overflow:hidden;
+  box-shadow:0 6px 12px var(--shadow);
+  transition:transform .18s,box-shadow .18s
+}
+button:hover{transform:translateY(-2px);box-shadow:0 8px 16px var(--shadow)}
+button:active{transform:scale(.95);box-shadow:0 4px 8px var(--shadow)}
+button .ripple{position:absolute;border-radius:50%;transform:scale(0);
+  background:rgba(255,255,255,.4);animation:ripple .6s linear}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+.spinner{width:68px;height:68px;border:8px solid #333;border-top-color:var(--accent);
+  border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#tip{font-size:.95em;margin-bottom:18px;color:var(--accent-2)}
+#menu-list{width:100%;max-width:330px}
+#menu-list .item{border-bottom:1px solid #444;padding:14px 2px;color:var(--text);opacity:0;animation:up .4s forwards}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+#timer-wrap{position:relative;width:220px;height:220px;margin:18px auto}
+#timer-wrap svg{display:block}
+#time,#phase{
+  position:absolute;left:50%;transform:translateX(-50%);text-shadow:0 2px 4px #000
+}
+#time{top:42%;font-size:2.4em}
+#phase{top:60%;font-size:1.05em;color:var(--accent-2)}
+#set-info{font-size:1em;margin-bottom:4px;color:var(--accent)}
+#desc{font-size:.9em;margin-top:10px;color:var(--sub);min-height:3.4em}
+
+#timer-circle{
+  stroke-dasharray:628; /* 2πr => r=100 */
+  stroke-dashoffset:628;
+  transition:stroke-dashoffset linear;
+  stroke-linecap:round
+}
+.rest-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.75);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;border-radius:18px
+}
+.rest-overlay h2{font-family:'Zen Maru Gothic',sans-serif;color:var(--accent);margin-bottom:8px}
+.rest-overlay .rest-sec{font-size:2.2em;margin-bottom:14px}
+
+#calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;width:100%;max-width:330px;margin-top:14px}
+#calendar div{padding:6px 0;font-size:.8em;background:#3a3a3a;border-radius:4px}
+#calendar .marked{background:var(--accent-2);color:#000}
+#calendar .today{border:1px solid var(--accent)}
+
+#yt-wrap{position:fixed;bottom:14px;right:14px;width:200px;height:112px;display:none;z-index:110}
+#yt-wrap iframe{width:100%;height:100%;border:none;border-radius:12px}
+</style>
+</head>
+<body>
+
+<div id="header">🔥 連続 <span id="streak">0</span> 日達成</div>
+<div id="settings">🔊</div>
+
+<div id="yt-wrap"></div>
+
+<div id="content">
+  <!-- Splash -->
+  <section id="splash" class="screen active">
+    <h1 id="title"></h1>
+    <p id="tip"></p>
+    <button id="start">スタート</button>
+  </section>
+
+  <!-- Carnitine -->
+  <section id="carn" class="screen">
+    <h1>カルニチン飲んだ？</h1>
+    <button id="c-yes">はい</button>
+    <button id="c-no">いいえ</button>
+  </section>
+
+  <section id="remind" class="screen">
+    <p>飲んでから再開してね😌</p>
+    <button id="recheck">確認</button>
+  </section>
+
+  <!-- Gacha -->
+  <section id="gacha" class="screen">
+    <h1>今日のメニュー</h1>
+    <div class="spinner" id="spin-load"></div>
+    <div id="menu-list"></div>
+    <button id="spin">ガチャを回す</button>
+    <button id="go" style="display:none">ワークアウト開始</button>
+  </section>
+
+  <!-- Exercise -->
+  <section id="work" class="screen">
+    <h1 id="ex-name"></h1>
+    <p id="set-info"></p>
+    <div id="timer-wrap">
+      <svg width="220" height="220">
+        <circle cx="110" cy="110" r="100" fill="none" stroke="#414141" stroke-width="16"/>
+        <circle id="timer-circle" cx="110" cy="110" r="100" fill="none" stroke="var(--accent)" stroke-width="16"/>
+      </svg>
+      <div id="time">0</div>
+      <div id="phase"></div>
+    </div>
+    <p id="desc"></p>
+    <button id="done">完了</button>
+  </section>
+
+  <!-- Stamp -->
+  <section id="stamp" class="screen">
+    <h1>Good Job!</h1>
+    <p>今日のスタンプ🎉</p>
+    <div id="calendar"></div>
+    <button id="close">閉じる</button>
+  </section>
+</div>
+
+<script>
+/* ========= Utility & Storage ========= */
+const $ = id => document.getElementById(id);
+const screens = ['splash','carn','remind','gacha','work','stamp'].reduce((o,k)=>(o[k]=$(k),o),{});
+const show = id => {Object.values(screens).forEach(s=>s.classList.remove('active'));screens[id].classList.add('active');};
+document.addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON') return;
+  const b=e.target,s=document.createElement('span');
+  s.className='ripple';b.appendChild(s);
+  const d=Math.max(b.clientWidth,b.clientHeight);
+  s.style.width=s.style.height=d+'px';
+  s.style.left=`${e.clientX-b.offsetLeft-d/2}px`;
+  s.style.top=`${e.clientY-b.offsetTop-d/2}px`;
+  s.addEventListener('animationend',()=>s.remove());
+});
+const LS='bedBurnData';
+const load = () => JSON.parse(localStorage.getItem(LS)||'{"stamps":{},"streak":0,"last":""}');
+const save = d => localStorage.setItem(LS,JSON.stringify(d));
+const today = () => new Date().toISOString().split('T')[0];
+const yesterday = () => {const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().split('T')[0]};
+
+/* ========= Sounds ========= */
+const sounds={
+  start:new Howl({src:['sounds/start.mp3'],volume:.6}),
+  tick :new Howl({src:['sounds/tick.mp3'],volume:.35}),
+  done :new Howl({src:['sounds/done.mp3'],volume:.6}),
+  praise:new Howl({src:['sounds/praise.mp3'],volume:.55})
+};
+let mute=false;
+$('settings').onclick=()=>{mute=!mute;$('settings').textContent=mute?'🔇':'🔊'};
+
+/* ========= Static Text ========= */
+const tips=[ '寝る前5分でむくみオフ🦵','深呼吸で副交感ON😌','今日も小さな一歩でOK','力を抜くほど燃える🔥','明日の自分へおみやげ代謝✨','呼吸は「吐く」を意識','肩の力を抜いてリラックス','続ける人がいちばん強い','脂肪も眠たい今がチャンス','スマホは顔に落とさないでね','寝返りついでにシェイプ','夜はヒートアップよりクールダウン','眠りの深さ＝回復力💤','“ちょいキツ” が丁度いい','たとえ1種目でも0より100倍','アゴを引くと腹筋ON','代謝は裏切らない','布団と友達、脂肪とは他人','肩甲骨を意識しよう','ゴールは“軽い体”の朝','夜こそストレッチ効率UP','酒よりストレッチで酔おう','今日のあなたはエライ','寝る前スマイル😊で幸せホルモン','ルーティンは最強の魔法','時間は最少、効果は最大','眠気が来たら勝ち','姿勢リセットが大事','リラックス＝燃焼モード','Just keep breathing','呼吸に合わせて動こう','今日の疲れは今日のうちに','足先ポカポカで入眠力UP','明日はきっと軽い体','夜ストレッチで脂肪撃退','ほどよい刺激で快眠','眠る前に身体をリセット','自分へのナイトケア','心地よい伸びで幸せ','今日も Good stretch!' ];
+const titles=['おやすみストレッチ','Bedtime Burn','Moonlight Moves','Dreamy Fit','Pillow Pump','Nightly Flow','Sleepy Shred'];
+const bravo=['Nice!','Great!','Perfect!','Good job!','Awesome!','Yatta!','👏','✨','👍','🔥'];
+
+/* ========= Supine Exercise List ========= */
+const exList=[
+  { key:'draw_in', name:'ドローイン', time:10, sets:5,
+    phases:[{d:10,t:'お腹を凹ませキープ'}],
+    desc:'息を吐きながらお腹をぺったんこにして10秒キープ' },
+  { key:'ankle_toe', name:'足首くるくる＋グーパー', time:60, sets:1,
+    phases:[{d:3,t:'右足首回し'},{d:3,t:'左足首回し'},{d:1,t:'足指グーパー×10'}],
+    desc:'足首をゆっくり回したら足指をグー・パーで血行促進' },
+  { key:'cockroach', name:'ゴキブリ体操', time:30, sets:1,
+    phases:[{d:2,t:'手足ブラブラ'}],
+    desc:'手足を真上に持ち上げ30秒軽くブラブラ' },
+  { key:'knee_chest', name:'ニー・チェスト', time:60, sets:2,
+    phases:[{d:2,t:'膝を胸へ'},{d:2,t:'脚を伸ばす'}],
+    desc:'両膝を曲げ胸に引き寄せてゆっくり伸ばす。床スレスレで止めると◎' },
+  { key:'leg_raise', name:'レッグレイズ', time:60, sets:2,
+    phases:[{d:2,t:'脚を上げる'},{d:2,t:'ゆっくり下ろす'}],
+    desc:'両足を揃えてまっすぐ上げ、床ぎりぎりで止めて戻る' },
+  { key:'hip_bridge', name:'ヒップリフト', time:75, sets:2,
+    phases:[{d:2,t:'持ち上げる'},{d:1,t:'キープ'},{d:2,t:'ゆっくり下ろす'}],
+    desc:'膝を立てて腰をぐっと持ち上げ、お尻をギュッと締める' },
+  { key:'bicycle', name:'バイシクルレッグ', time:30, sets:2,
+    phases:[{d:2,t:'空中ペダル'}],
+    desc:'お腹で支える意識で脚を交互にこぐ' }
+];
+
+/* ========= Accent randomiser ========= */
+const accents=[['var(--c0a)','var(--c0b)'],['var(--c1a)','var(--c1b)'],['var(--c2a)','var(--c2b)'],['var(--c3a)','var(--c3b)'],['var(--c4a)','var(--c4b)']];
+function setAccent(){
+  const pair=accents[Math.random()*accents.length|0];
+  document.documentElement.style.setProperty('--accent',pair[0]);
+  document.documentElement.style.setProperty('--accent-2',pair[1]);
+}
+
+/* ========= Runtime State ========= */
+let routine=[],ci=0,cs=1,sec=0,ph=0,phLeft=0,timer,resting=false;
+
+/* ========= Init ========= */
+document.addEventListener('DOMContentLoaded',()=>{
+  setAccent();
+  $('title').textContent=titles[Math.random()*titles.length|0];
+  $('tip').textContent=tips[Math.random()*tips.length|0];
+  const d=load();$('streak').textContent=d.streak;
+});
+
+/* ========= Flow Buttons ========= */
+$('start').onclick=()=>show('carn');
+$('c-yes').onclick=()=>show('gacha');
+$('c-no').onclick=()=>show('remind');
+$('recheck').onclick=()=>show('carn');
+
+/* --- Gacha --- */
+$('spin').onclick=()=>{
+  $('spin-load').style.display='block';
+  $('spin').disabled=true;
+  setTimeout(()=>{
+    $('spin-load').style.display='none';
+    const tmp=[...exList];routine=[];
+    for(let i=0;i<3;i++) routine.push(tmp.splice(Math.random()*tmp.length|0,1)[0]);
+    const list=$('menu-list');list.innerHTML='';
+    routine.forEach((ex,i)=>{
+      const div=document.createElement('div');
+      div.className='item';div.style.animationDelay=`${i*.08}s`;
+      div.textContent=`${ex.name}（${ex.sets} set）`;
+      list.appendChild(div);
+    });
+    $('spin').style.display='none';$('go').style.display='inline-block';
+  },1300);
+};
+$('go').onclick=()=>{ci=0;cs=1;startEx()};
+
+/* ========= Exercise Engine ========= */
+function startEx(){
+  show('work');resting=false;
+  const ex=routine[ci];
+  $('ex-name').classList.remove('bounce');void $('ex-name').offsetWidth;$('ex-name').textContent=ex.name;$('ex-name').classList.add('bounce');
+  $('set-info').textContent=`${cs}/${ex.sets} セット`;
+  $('desc').textContent=ex.desc;
+  $('phase').textContent=ex.phases[0].t;
+  sec=ex.time;ph=0;phLeft=ex.phases[0].d;
+  $('time').textContent=sec;
+  const circle=$('timer-circle');
+  circle.style.transition='none';circle.style.strokeDashoffset=628;void circle.getBoundingClientRect();
+  circle.style.transition=`stroke-dashoffset ${ex.time}s linear`;
+  circle.style.strokeDashoffset=0;
+  if(!mute)sounds.start.play();
+  clearInterval(timer);
+  timer=setInterval(()=>{
+    if(resting) return;
+    sec--;phLeft--;
+    if(!mute)sounds.tick.play();
+    if(phLeft<=0){
+      ph=(ph+1)%ex.phases.length;
+      phLeft=ex.phases[ph].d;
+      $('phase').textContent=ex.phases[ph].t;
+    }
+    $('time').textContent=sec;
+    if(sec<=0) clearInterval(timer);
+  },1000);
+}
+
+/* --- Done button --- */
+$('done').onclick=()=>{
+  if(resting) return;
+  if(!mute){sounds.done.play();sounds.praise.play();}
+  confetti({particleCount:80,spread:70,origin:{y:.6}});
+  const ex=routine[ci];
+  if(cs<ex.sets){cs++;restPhase();}
+  else{
+    ci++;cs=1;
+    if(ci<routine.length) restPhase();
+    else finish();
+  }
+};
+
+/* --- Rest Phase 10 s --- */
+function restPhase(){
+  resting=true;
+  const ov=document.createElement('div');
+  ov.className='rest-overlay';
+  ov.innerHTML=`<h2>${bravo[Math.random()*bravo.length|0]}</h2><div class="rest-sec" id="r-sec">10</div><button id="next">次へ</button>`;
+  $('timer-wrap').appendChild(ov);
+  let r=10;
+  const rT=setInterval(()=>{
+    r--;$('r-sec').textContent=r;
+    if(r<=0) go();
+  },1000);
+  function go(){clearInterval(rT);ov.remove();resting=false;startEx();}
+  $('next').onclick=go;
+}
+
+/* --- Finish routine --- */
+function finish(){
+  const d=load(),k=today();
+  if(!d.stamps[k]){
+    d.stamps[k]=true;
+    d.streak = d.last===yesterday()?d.streak+1:1;
+    d.last=k; save(d);
+  }
+  $('streak').textContent=d.streak;
+  buildCal(d.stamps);
+  show('stamp');
+}
+/* calendar */
+function buildCal(st){
+  const cal=$('calendar');cal.innerHTML='';
+  ['日','月','火','水','木','金','土'].forEach(d=>{
+    const h=document.createElement('div');h.textContent=d;h.style.background='#555';cal.appendChild(h);
+  });
+  const n=new Date(),y=n.getFullYear(),m=n.getMonth();
+  const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();
+  for(let i=0;i<first;i++) cal.appendChild(document.createElement('div'));
+  for(let d=1;d<=days;d++){
+    const cell=document.createElement('div');cell.textContent=d;
+    const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if(st[key]) cell.classList.add('marked');
+    if(key===today()) cell.classList.add('today');
+    cal.appendChild(cell);
+  }
+}
+$('close').onclick=()=>{show('splash');$('tip').textContent=tips[Math.random()*tips.length|0];setAccent();};
+
+/* ========= Free YouTube PiP (long‑press) ========= */
+let pressT;
+$('settings').addEventListener('mousedown',()=>pressT=setTimeout(longPress,800));
+$('settings').addEventListener('mouseup',()=>clearTimeout(pressT));
+function longPress(){
+  const url=prompt('YouTube URL / ID?','');
+  if(!url) return;
+  $('yt-wrap').innerHTML=`<iframe src="https://www.youtube.com/embed/${ytID(url)}?autoplay=1&mute=1&controls=0&rel=0" allow="autoplay;picture-in-picture" allowfullscreen></iframe>`;
+  $('yt-wrap').style.display='block';
+}
+const ytID = u => u.includes('youtu') ? u.split(/v=|be\//)[1].substring(0,11) : u;
+</script>
+</body>
+</html>
