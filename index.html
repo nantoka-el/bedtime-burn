@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#17c0ff">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bedtime Burn</title>
@@ -383,5 +386,11 @@ function longPress(){
 }
 const ytID = u => u.includes('youtu') ? u.split(/v=|be\//)[1].substring(0,11) : u;
 </script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+</script>
+
 </body>
 </html>
