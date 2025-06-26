@@ -175,6 +175,7 @@ button .ripple{position:absolute;border-radius:50%;transform:scale(0);
     <h1>Good Job!</h1>
     <p>今日のスタンプ🎉</p>
     <div id="calendar"></div>
+    <button id="more">おかわり！</button>
     <button id="close">閉じる</button>
   </section>
 </div>
@@ -286,25 +287,25 @@ $('c-yes').onclick=()=>show('gacha');
 $('c-no').onclick=()=>show('remind');
 $('recheck').onclick=()=>show('carn');
 
-/* --- Gacha --- */
 $('spin').onclick=()=>{
   $('spin-load').style.display='block';
   $('spin').disabled=true;
-  setTimeout(()=>{
-    $('spin-load').style.display='none';
-    const tmp=[...exList];routine=[];
-    for(let i=0;i<3;i++) routine.push(tmp.splice(Math.random()*tmp.length|0,1)[0]);
-    const list=$('menu-list');list.innerHTML='';
-    routine.forEach((ex,i)=>{
-      const div=document.createElement('div');
-      div.className='item';div.style.animationDelay=`${i*.08}s`;
-      div.textContent=`${ex.name}（${ex.sets} set）`;
-      list.appendChild(div);
-    });
-    $('spin').style.display='none';$('go').style.display='inline-block';
-  },1300);
+  setTimeout(()=>{ $('spin-load').style.display='none'; makeRoutine(); $('spin').disabled=false; },1300);
 };
 $('go').onclick=()=>{ci=0;cs=1;startEx()};
+
+function makeRoutine(){
+  const tmp=[...exList];routine=[];
+  for(let i=0;i<3;i++) routine.push(tmp.splice(Math.random()*tmp.length|0,1)[0]);
+  const list=$('menu-list');list.innerHTML='';
+  routine.forEach((ex,i)=>{
+    const div=document.createElement('div');
+    div.className='item';div.style.animationDelay=`${i*.08}s`;
+    div.textContent=`${ex.name}（${ex.sets} set）`;
+    list.appendChild(div);
+  });
+  $('spin').style.display='none';$('go').style.display='inline-block';
+}
 
 /* ========= Exercise Engine ========= */
 function startEx(){
@@ -378,11 +379,13 @@ function restPhase(){
 /* --- Finish routine --- */
 function finish(){
   const d=load(),k=today();
-  if(!d.stamps[k]){
-    d.stamps[k]=true;
+  const prev = typeof d.stamps[k]==='number' ? d.stamps[k] : (d.stamps[k] ? 1 : 0);
+  if(prev===0){
     d.streak = d.last===yesterday()?d.streak+1:1;
-    d.last=k; save(d);
+    d.last=k;
   }
+  d.stamps[k]=prev+1;
+  save(d);
   $('streak').textContent=d.streak;
   buildCal(d.stamps);
   show('stamp');
@@ -397,14 +400,17 @@ function buildCal(st){
   const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();
   for(let i=0;i<first;i++) cal.appendChild(document.createElement('div'));
   for(let d=1;d<=days;d++){
-    const cell=document.createElement('div');cell.textContent=d;
+    const cell=document.createElement('div');
     const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    if(st[key]) cell.classList.add('marked');
+    const cnt = typeof st[key]==='number' ? st[key] : (st[key] ? 1 : 0);
+    cell.textContent = cnt>1 ? `🔥×${cnt}` : d;
+    if(cnt) cell.classList.add('marked');
     if(key===today()) cell.classList.add('today');
     cal.appendChild(cell);
   }
 }
 $('close').onclick=()=>{show('splash');$('tip').textContent=tips[Math.random()*tips.length|0];setAccent();};
+$('more').onclick=()=>{makeRoutine();show('gacha');};
 
 /* ========= Free YouTube PiP (long‑press) ========= */
 let pressT;
