@@ -91,6 +91,7 @@ button .ripple{position:absolute;border-radius:50%;transform:scale(0);
 }
 #time{top:42%;font-size:2.4em}
 #phase{top:60%;font-size:1.05em;color:var(--accent-2)}
+#next-phase{top:72%;font-size:.9em;color:var(--sub);opacity:.6;position:absolute;left:50%;transform:translateX(-50%)}
 #set-info{font-size:1em;margin-bottom:4px;color:var(--accent)}
 #desc{font-size:.9em;margin-top:10px;color:var(--sub);min-height:3.4em}
 
@@ -163,6 +164,7 @@ button .ripple{position:absolute;border-radius:50%;transform:scale(0);
       </svg>
       <div id="time">0</div>
       <div id="phase"></div>
+      <div id="next-phase"></div>
     </div>
     <p id="desc"></p>
     <button id="done">完了</button>
@@ -312,6 +314,11 @@ function startEx(){
   $('set-info').textContent=`${cs}/${ex.sets} セット`;
   $('desc').textContent=ex.desc;
   $('phase').textContent=ex.phases[0].t;
+  if(ex.phases.length>1){
+    $('next-phase').style.display='block';
+    const np=ex.phases[1];
+    $('next-phase').textContent=`次: ${np.t} (${np.d}s)`;
+  }else{$('next-phase').style.display='none';}
   sec=ex.time;ph=0;phLeft=ex.phases[0].d;
   $('time').textContent=sec;
   const circle=$('timer-circle');
@@ -328,6 +335,10 @@ function startEx(){
       ph=(ph+1)%ex.phases.length;
       phLeft=ex.phases[ph].d;
       $('phase').textContent=ex.phases[ph].t;
+    }
+    if(ex.phases.length>1){
+      const np=ex.phases[(ph+1)%ex.phases.length];
+      $('next-phase').textContent=`次: ${np.t} (${np.d}s)`;
     }
     $('time').textContent=sec;
     if(sec<=0) clearInterval(timer);
