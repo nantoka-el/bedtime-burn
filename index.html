@@ -315,12 +315,17 @@ function startEx(){
   $('set-info').textContent=`${cs}/${ex.sets} セット`;
   $('desc').textContent=ex.desc;
   $('phase').textContent=ex.phases[0].t;
-  if(ex.phases.length>1){
-    $('next-phase').style.display='block';
-    const np=ex.phases[1];
-    $('next-phase').textContent=`次: ${np.t} (${np.d}s)`;
-  }else{$('next-phase').style.display='none';}
+  function updateNext(){
+    if(ex.phases.length>1 && sec>phLeft){
+      const np=ex.phases[(ph+1)%ex.phases.length];
+      $('next-phase').style.display='block';
+      $('next-phase').textContent=`次: ${np.t} (${np.d}s)`;
+    }else{
+      $('next-phase').style.display='none';
+    }
+  }
   sec=ex.time;ph=0;phLeft=ex.phases[0].d;
+  updateNext();
   $('time').textContent=sec;
   const circle=$('timer-circle');
   circle.style.transition='none';circle.style.strokeDashoffset=628;void circle.getBoundingClientRect();
@@ -337,10 +342,7 @@ function startEx(){
       phLeft=ex.phases[ph].d;
       $('phase').textContent=ex.phases[ph].t;
     }
-    if(ex.phases.length>1){
-      const np=ex.phases[(ph+1)%ex.phases.length];
-      $('next-phase').textContent=`次: ${np.t} (${np.d}s)`;
-    }
+    updateNext();
     $('time').textContent=sec;
     if(sec<=0) clearInterval(timer);
   },1000);
