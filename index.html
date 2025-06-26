@@ -369,8 +369,9 @@ $('go').onclick=()=>{ci=0;cs=1;startEx()};
 function makeRoutine(){
   const normal=exList.filter(e=>!e.cooldown);
   const cool=exList.filter(e=>e.cooldown);
-  routine=[];
-  for(let i=0;i<3;i++) routine.push(normal.splice(Math.random()*normal.length|0,1)[0]);
+  normal.sort(()=>Math.random()-0.5);
+  routine=[]; // 安全のためリセット
+  routine.push(...normal.slice(0,3));
   routine.push(cool[Math.random()*cool.length|0]);
   const list=$('menu-list');list.innerHTML='';
   routine.forEach((ex,i)=>{
